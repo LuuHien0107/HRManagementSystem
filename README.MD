@@ -1,51 +1,40 @@
-﻿# HR Management API (Spring Boot 4)
+# HR Management API (Spring Boot 4)
 
-REST API quản lý nhân sự với JWT authentication, refresh token, upload file, và phân quyền theo role/permission.
+REST API quan ly nhan su voi JWT auth, refresh token rotation, RBAC theo `apiPath + method`, upload file va dashboard tong quan.
 
-## Tổng quan
+## Tong quan
 
-Dự án cung cấp backend API cho các nghiệp vụ:
-- Quản lý người dùng (Users)
-- Quản lý công ty (Companies)
-- Quản lý vai trò (Roles)
-- Quản lý quyền (Permissions)
-- Xác thực và vòng đời token
-- Upload file (avatar/logo)
+Backend gom cac feature:
+- Auth: register/login/me/refresh/logout
+- User, Company, Role, Permission CRUD
+- Dashboard tong hop so lieu
+- Upload file avatar/logo
 
-Tất cả endpoint đều trả về chuẩn `ApiResponse<T>`.
+Tat ca API business tra ve `ApiResponse<T>`.
 
-## Chức năng chính
+## Trang thai hien tai
 
-- Xác thực JWT bằng Spring Security OAuth2 Resource Server
-- Luồng access token + refresh token
-- Đăng ký, đăng nhập, refresh token, logout, lấy thông tin user hiện tại (`/auth/me`)
-- CRUD cho User, Company, Role, Permission
-- Phân quyền RBAC theo `apiPath + method` thông qua Role -> Permission
-- Upload file có validate (đuôi file, kích thước, thư mục)
-- Phân trang + sắp xếp cho các endpoint danh sách
-- Global exception handling, response JSON thống nhất
-- Seed dữ liệu mẫu (permissions, roles, companies, users)
+- Spring Boot `4.0.2`, Java `25`
+- Security bang OAuth2 Resource Server + JWT
+- RBAC dong tu DB (Role -> Permission)
+- Refresh token luu DB (`refresh_tokens`), revoke khi logout, co cleanup scheduler moi ngay luc `02:00`
+- User filter ho tro: `name`, `address`, `email`, `ageFrom`, `ageTo`, `gender`
+- Pagination/sorting cho cac API list
 
-## Công nghệ sử dụng
+## Cong nghe
 
-- Java 25
-- Spring Boot 4.0.2
-- Spring MVC
-- Spring Security 7 + OAuth2 Resource Server
-- Spring Data JPA + Hibernate
-- MySQL (runtime)
-- H2 (test profile)
-- Maven
+- Spring MVC, Spring Security 7, Spring Data JPA, Hibernate
+- MySQL (runtime), H2 (test)
 - SpringDoc OpenAPI (Swagger UI)
-- JUnit + Mockito + MockMvc
+- JUnit 5, Mockito, MockMvc
 
-## Cấu trúc dự án
+## Cau truc du an
 
 ```text
 src/main/java/vn/luuhien/springrestwithai
-|- config/            # security, jwt, openapi, upload config, seeder
-|- dto/               # ApiResponse dùng chung
-|- exception/         # custom exceptions + global handler
+|- config/          # security, jwt, openapi, scheduler, seeder, upload config
+|- dto/             # ApiResponse, PagedResult
+|- exception/       # base exception + global handler
 |- feature/
 |  |- auth/
 |  |- user/
@@ -53,98 +42,89 @@ src/main/java/vn/luuhien/springrestwithai
 |  |- role/
 |  |- permission/
 |  |- file/
-|- security/          # CustomUserDetailsService, PermissionAuthorizationManager
+|  |- dashboard/
+|- security/        # CustomUserDetailsService, PermissionAuthorizationManager
 ```
 
-## Yêu cầu môi trường
+## Yeu cau moi truong
 
 - JDK 25
 - Maven 3.9+
 - MySQL 8+
 
-## Cấu hình
+## Cau hinh chinh
 
-File cấu hình chính: `src/main/resources/application.yml`
+File: `src/main/resources/application.yml`
 
-Thiết lập mặc định hiện tại:
-- DB: `jdbc:mysql://localhost:3306/hr_management`
-- JWT secret + thời gian hết hạn token
-- Thư mục upload: `uploads`
-- Seed dữ liệu bật sẵn: `app.seed-data=true`
+Cac muc can kiem tra truoc khi chay:
+- `spring.datasource.*` (url/username/password)
+- `jwt.secret`, `jwt.expiration`, `jwt.refresh-expiration`
+- `app.upload.base-dir`
+- `app.seed-data=true` (dev seed)
 
-Bạn nên chỉnh lại username/password MySQL theo máy local trước khi chạy.
-
-## Chạy dự án
-
-### Dùng Maven
+## Chay du an
 
 ```bash
 mvn spring-boot:run
 ```
 
-### Dùng Maven Wrapper
-
-```bash
-./mvnw spring-boot:run
-```
-
-Windows:
+Windows (wrapper):
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-Server mặc định: `http://localhost:8080`
+Server mac dinh: `http://localhost:8080`
 
-## Tài liệu API
+## Swagger / OpenAPI
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
 
-Chi tiết đầy đủ: `docs/API_SPEC.md`
+## Endpoint chinh
 
-## Các endpoint chính
-
-### Auth
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/me`
-
-### Các module nghiệp vụ
+- Auth: `/api/v1/auth/*`
 - Users: `/api/v1/users`
 - Companies: `/api/v1/companies`
 - Roles: `/api/v1/roles`
 - Permissions: `/api/v1/permissions`
+- Dashboard: `/api/v1/dashboard`
 - Files: `POST /api/v1/files`
 
-## Mô hình bảo mật
+Chi tiet day du: `docs/API_SPEC.md`
 
-- Public: login, register, swagger, static uploads
-- Protected: toàn bộ endpoint còn lại
-- Rule phân quyền động từ DB:
-  - So khớp request `path + method`
-  - Đối chiếu danh sách permission của các role user đang có
+## Bao mat
 
-## Kiểm thử
+- Public: login/register + swagger/resources whitelist
+- Protected: cac endpoint con lai
+- Authorization:
+  - Match `HTTP method + request path`
+  - Check permission theo role trong JWT
+  - Ho tro role key ca dang `SUPER_ADMIN` va `ROLE_SUPER_ADMIN`
 
-Chạy toàn bộ test:
+## Test
+
+Chay toan bo:
 
 ```bash
 mvn test
 ```
 
-Cấu hình test profile: `src/main/resources/application-test.yml`
+Neu moi truong Maven local repo bi loi quyen, dung:
 
-## Tài liệu liên quan
+```bash
+mvn -Dmaven.repo.local=.m2/repository test
+```
 
-- `docs/PROJECT-RULES.md`
+## Tai lieu lien quan
+
 - `docs/PROJECT-STATUS.md`
+- `docs/PROJECT-RULES.md`
 - `docs/API_SPEC.md`
-- `docs/ARCHITECTURE.md`
 - `docs/DATABASE.md`
+- `docs/ARCHITECTURE.md`
+- `docs/decisions/*.md`
 
-## Giấy phép
+## License
 
-Xem `LICENSE.MD` và `LICENSE_VI.md`.
+Xem `LICENSE.MD` va `LICENSE_VI.md`.
