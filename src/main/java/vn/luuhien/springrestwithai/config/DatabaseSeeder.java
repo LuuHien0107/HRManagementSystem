@@ -15,6 +15,7 @@ import vn.luuhien.springrestwithai.feature.role.Role;
 import vn.luuhien.springrestwithai.feature.role.RoleRepository;
 import vn.luuhien.springrestwithai.feature.user.User;
 import vn.luuhien.springrestwithai.feature.user.UserRepository;
+import vn.luuhien.springrestwithai.security.PermissionAuthorizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,18 +36,21 @@ public class DatabaseSeeder implements CommandLineRunner {
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final PermissionAuthorizationManager permissionAuthorizationManager;
 
     public DatabaseSeeder(
             PermissionRepository permissionRepository,
             RoleRepository roleRepository,
             CompanyRepository companyRepository,
             UserRepository userRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            PermissionAuthorizationManager permissionAuthorizationManager) {
         this.permissionRepository = permissionRepository;
         this.roleRepository = roleRepository;
         this.companyRepository = companyRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.permissionAuthorizationManager = permissionAuthorizationManager;
     }
 
     @Override
@@ -56,23 +60,31 @@ public class DatabaseSeeder implements CommandLineRunner {
         seedRoles();
         seedCompanies();
         seedUsers();
+        permissionAuthorizationManager.loadCache();
     }
 
     private void seedPermissions() {
         createPermissionIfMissing("Get users", "/api/v1/users", "GET", "USER");
         createPermissionIfMissing("Create user", "/api/v1/users", "POST", "USER");
         createPermissionIfMissing("Update user", "/api/v1/users", "PUT", "USER");
-        createPermissionIfMissing("Delete user", "/api/v1/users/{id}", "DELETE", "USER");
+        createPermissionIfMissing("Delete user", "/api/v1/users/**", "DELETE", "USER");
 
         createPermissionIfMissing("Get roles", "/api/v1/roles", "GET", "ROLE");
         createPermissionIfMissing("Create role", "/api/v1/roles", "POST", "ROLE");
         createPermissionIfMissing("Update role", "/api/v1/roles", "PUT", "ROLE");
-        createPermissionIfMissing("Delete role", "/api/v1/roles/{id}", "DELETE", "ROLE");
+        createPermissionIfMissing("Delete role", "/api/v1/roles/**", "DELETE", "ROLE");
 
         createPermissionIfMissing("Get companies", "/api/v1/companies", "GET", "COMPANY");
         createPermissionIfMissing("Create company", "/api/v1/companies", "POST", "COMPANY");
         createPermissionIfMissing("Update company", "/api/v1/companies", "PUT", "COMPANY");
-        createPermissionIfMissing("Delete company", "/api/v1/companies/{id}", "DELETE", "COMPANY");
+        createPermissionIfMissing("Get company by id", "/api/v1/companies/**", "GET", "COMPANY");
+        createPermissionIfMissing("Delete company", "/api/v1/companies/**", "DELETE", "COMPANY");
+
+        createPermissionIfMissing("Get permissions", "/api/v1/permissions", "GET", "PERMISSION");
+        createPermissionIfMissing("Create permission", "/api/v1/permissions", "POST", "PERMISSION");
+        createPermissionIfMissing("Update permission", "/api/v1/permissions", "PUT", "PERMISSION");
+        createPermissionIfMissing("Get permission by id", "/api/v1/permissions/**", "GET", "PERMISSION");
+        createPermissionIfMissing("Delete permission", "/api/v1/permissions/**", "DELETE", "PERMISSION");
     }
 
     private void createPermissionIfMissing(String name, String apiPath, String method, String module) {
@@ -93,7 +105,10 @@ public class DatabaseSeeder implements CommandLineRunner {
 
     private void seedRoles() {
         Map<String, Permission> permissionByName = permissionRepository.findAll().stream()
-                .collect(Collectors.toMap(permission -> normalize(permission.getName()), Function.identity()));
+                .collect(Collectors.toMap(
+                        permission -> normalize(permission.getName()),
+                        Function.identity(),
+                        (existing, replacement) -> existing));
 
         Role superAdminRole = createOrUpdateRole(
                 "SUPER_ADMIN",

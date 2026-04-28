@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 
 import vn.luuhien.springrestwithai.feature.user.dto.CreateUserRequest;
 import vn.luuhien.springrestwithai.feature.user.dto.UpdateUserRequest;
+import vn.luuhien.springrestwithai.feature.user.dto.UserFilterRequest;
 import vn.luuhien.springrestwithai.feature.user.dto.UserResponse;
 
 public interface UserService {
@@ -13,7 +14,7 @@ public interface UserService {
 
     UserResponse getUserById(Long id);
 
-    Page<UserResponse> getAllUsers(Pageable pageable);
+    Page<UserResponse> getAllUsers(UserFilterRequest filter, Pageable pageable);
 
     UserResponse updateUser(UpdateUserRequest request);
 

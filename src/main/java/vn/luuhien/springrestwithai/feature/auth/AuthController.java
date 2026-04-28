@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import vn.luuhien.springrestwithai.dto.ApiResponse;
+import vn.luuhien.springrestwithai.exception.UnauthorizedException;
 import vn.luuhien.springrestwithai.feature.auth.dto.LoginRequest;
 import vn.luuhien.springrestwithai.feature.auth.dto.LoginResponse;
 import vn.luuhien.springrestwithai.feature.auth.dto.RefreshTokenRequest;
@@ -64,6 +65,9 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(Authentication authentication, HttpServletResponse response) {
+        if (authentication == null) {
+            throw new UnauthorizedException("Unauthorized");
+        }
         authService.logout(authentication.getName());
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefreshTokenCookie().toString());
         return ResponseEntity.ok(ApiResponse.success("Logout successful", null));
@@ -71,6 +75,9 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> me(Authentication authentication) {
+        if (authentication == null) {
+            throw new UnauthorizedException("Unauthorized");
+        }
         UserResponse currentUser = authService.getCurrentUser(authentication.getName());
         return ResponseEntity.ok(ApiResponse.success(currentUser));
     }

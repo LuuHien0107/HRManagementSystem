@@ -10,6 +10,10 @@
     hibernate:
       ddl-auto: update
     show-sql: true
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
   servlet:
     multipart:
       max-file-size: 5MB
@@ -35,3 +39,7 @@ app:
       - avatars
       - logos
 
+springdoc: 
+  swagger-ui:
+    persist-authorization: true
+    enabled: true

@@ -19,6 +19,7 @@ import vn.luuhien.springrestwithai.feature.role.Role;
 import vn.luuhien.springrestwithai.feature.role.RoleRepository;
 import vn.luuhien.springrestwithai.feature.user.dto.CreateUserRequest;
 import vn.luuhien.springrestwithai.feature.user.dto.UpdateUserRequest;
+import vn.luuhien.springrestwithai.feature.user.dto.UserFilterRequest;
 import vn.luuhien.springrestwithai.feature.user.dto.UserResponse;
 
 import java.util.List;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -155,9 +157,11 @@ class UserServiceImplTest {
         User user = buildUser(1L, "Nguyen Van A", "user@example.com", "encoded", null, List.of());
         Page<User> page = new PageImpl<>(List.of(user));
 
-        when(userRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
+        when(userRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(PageRequest.of(0, 10))))
+                .thenReturn(page);
 
-        Page<UserResponse> responsePage = userService.getAllUsers(PageRequest.of(0, 10));
+        Page<UserResponse> responsePage = userService.getAllUsers(new UserFilterRequest(null, null, null, null, null, null),
+                PageRequest.of(0, 10));
 
         assertFalse(responsePage.isEmpty());
         assertEquals(1, responsePage.getTotalElements());
@@ -166,9 +170,11 @@ class UserServiceImplTest {
     @Test
     @DisplayName("getAllUsers returns empty list")
     void getAllUsers_empty_returnEmptyPage() {
-        when(userRepository.findAll(PageRequest.of(0, 10))).thenReturn(new PageImpl<>(List.of()));
+        when(userRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(PageRequest.of(0, 10))))
+                .thenReturn(new PageImpl<>(List.of()));
 
-        Page<UserResponse> responsePage = userService.getAllUsers(PageRequest.of(0, 10));
+        Page<UserResponse> responsePage = userService.getAllUsers(new UserFilterRequest(null, null, null, null, null, null),
+                PageRequest.of(0, 10));
 
         assertTrue(responsePage.isEmpty());
     }

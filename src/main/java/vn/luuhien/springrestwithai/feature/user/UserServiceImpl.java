@@ -14,6 +14,7 @@ import vn.luuhien.springrestwithai.feature.role.Role;
 import vn.luuhien.springrestwithai.feature.role.RoleRepository;
 import vn.luuhien.springrestwithai.feature.user.dto.CreateUserRequest;
 import vn.luuhien.springrestwithai.feature.user.dto.UpdateUserRequest;
+import vn.luuhien.springrestwithai.feature.user.dto.UserFilterRequest;
 import vn.luuhien.springrestwithai.feature.user.dto.UserResponse;
 
 import java.util.ArrayList;
@@ -69,8 +70,8 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public Page<UserResponse> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable).map(UserResponse::fromEntity);
+    public Page<UserResponse> getAllUsers(UserFilterRequest filter, Pageable pageable) {
+        return userRepository.findAll(UserSpecification.build(filter), pageable).map(UserResponse::fromEntity);
     }
 
     @Override

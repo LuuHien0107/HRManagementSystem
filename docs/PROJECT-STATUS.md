@@ -1,6 +1,6 @@
 ﻿# Project Status
 
-> Last updated: 2026-04-22 | By: @codex | Session: #2
+> Last updated: 2026-04-28 | By: @codex | Session: #4
 >
 > AI: update this file at the end of every session when asked.
 > Follow this exact format. Keep it concise — under 80 lines.
@@ -24,6 +24,12 @@
 - ✅ User CONTEXT.md
 - ✅ File upload module (filesystem storage, validation, endpoint + tests)
 - ✅ File CONTEXT.md
+- ✅ Base exception hierarchy completed (`AppException` + inherited custom exceptions)
+- ✅ Auth endpoints: `/auth/login`, `/auth/register`, `/auth/me` + integration tests
+- ✅ RBAC permission-based authorization (path + method) integrated into SecurityFilterChain
+- ✅ Security test data factory + 200/403 integration coverage for main CRUD modules
+- ✅ User filter (name, address, email, age range, gender)
+- ✅ Scheduled job cleanup expired refresh tokens (02:00 daily) + `@EnableScheduling`
 
 ## In Progress
 _Nothing._
@@ -35,17 +41,14 @@ _None._
 _None._
 
 ## Next Tasks
-1. **[P0]** Bổ sung `AppException` để hoàn tất base exception hierarchy
-2. **[P1]** Hoàn thiện auth endpoints và enforce JWT đầy đủ
-3. **[P2]** Refresh token flow theo ADR-001
-4. **[P3]** RBAC permission-based authorization (path + method)
-5. **[P4]** Bổ sung 401/403 test coverage cho các endpoint CRUD hiện có
-6. **[P5]** Hoàn thiện checklist review + polish tài liệu cuối phase
+1. **[P2]** Refresh token flow theo ADR-001
+2. **[P3]** RBAC permission-based authorization (path + method)
+3. **[P4]** Hoàn thiện checklist review + polish tài liệu cuối phase
 
 ## Milestones
 
 ### Phase 0 — Foundation
-- [ ] Base exception classes (thiếu `AppException`; đã có ResourceNotFoundException, InvalidRequestException)
+- [x] Base exception classes (thiếu `AppException`; đã có ResourceNotFoundException, InvalidRequestException)
 - [x] GlobalExceptionHandler
 - [x] ApiResponse wrapper
 - [x] SecurityConfig cơ bản
@@ -63,15 +66,15 @@ _None._
 
 ### Phase 4 — Authentication
 - [x] CustomUserDetailsService
-- [ ] POST /auth/login + POST /auth/register + test
+- [x] POST /auth/login + POST /auth/register + test
 - [x] Enable JWT enforce in SecurityConfig
-- [ ] GET /auth/me + test
+- [x] GET /auth/me + test
 
 ### Phase 5 — Refresh Token (ADR-001)
 - [x] RefreshToken entity + repository
 - [x] POST /auth/refresh (cookie SPA + body mobile)
 - [x] POST /auth/logout (revoke + clear cookie)
-- [ ] Full auth flow test
+- [x] Full auth flow test
 
 ### Phase 6 — File Upload (ADR-002)
 - [x] StorageService (upload)
@@ -80,13 +83,13 @@ _None._
 - [x] Unit + integration tests
 
 ### Phase 7 — RBAC (Permission-based Authorization)
-- [ ] Middleware: match request (path + method) → Permission → Role
-- [ ] Integrate into SecurityFilterChain
-- [ ] Test: 200 (authorized) + 403 (forbidden)
-- [ ] Add 401/403 test cases to Phase 1-3 endpoints
+- [x] Middleware: match request (path + method) → Permission → Role
+- [x] Integrate into SecurityFilterChain
+- [x] Test: 200 (authorized) + 403 (forbidden)
+- [x] Add 401/403 test cases to Phase 1-3 endpoints
 
 ### Phase 8 — Polish
 - [x] Pagination + sorting for all list endpoints
-- [ ] Search / filter (if needed)
-- [ ] Scheduled job: cleanup expired refresh tokens
+- [x] Search / filter (if needed)
+- [x] Scheduled job: cleanup expired refresh tokens
 - [ ] Full review (/review-pr) + final docs update

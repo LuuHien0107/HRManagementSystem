@@ -2,7 +2,7 @@ package vn.luuhien.springrestwithai.exception;
 
 import java.io.Serial;
 
-public class DuplicateResourceException extends RuntimeException {
+public class DuplicateResourceException extends AppException {
 
     @Serial
     private static final long serialVersionUID = 1L;

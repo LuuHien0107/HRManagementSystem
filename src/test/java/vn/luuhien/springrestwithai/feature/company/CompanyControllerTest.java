@@ -6,12 +6,15 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import vn.luuhien.springrestwithai.support.TestDataFactory;
+
+import java.util.List;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,12 +29,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CompanyControllerTest {
 
     private MockMvc mockMvc;
+    private String allowedToken;
+    private String forbiddenToken;
 
     @Autowired
     private WebApplicationContext webApplicationContext;
 
     @Autowired
     private CompanyRepository companyRepository;
+
+    @Autowired
+    private TestDataFactory testDataFactory;
 
     @BeforeEach
     void setUp() {
@@ -40,11 +48,22 @@ class CompanyControllerTest {
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
         companyRepository.deleteAll();
+
+        allowedToken = testDataFactory.createUserTokenWithPermissions(
+                "company-allowed-" + UUID.randomUUID() + "@example.com",
+                List.of(
+                        new TestDataFactory.EndpointPermission("/api/v1/companies", "GET", "COMPANY"),
+                        new TestDataFactory.EndpointPermission("/api/v1/companies", "POST", "COMPANY"),
+                        new TestDataFactory.EndpointPermission("/api/v1/companies", "PUT", "COMPANY"),
+                        new TestDataFactory.EndpointPermission("/api/v1/companies/**", "GET", "COMPANY"),
+                        new TestDataFactory.EndpointPermission("/api/v1/companies/**", "DELETE", "COMPANY")
+                ));
+        forbiddenToken = testDataFactory.createUserTokenWithoutPermissions(
+                "company-forbidden-" + UUID.randomUUID() + "@example.com");
     }
 
     @Test
     @DisplayName("POST /companies success")
-    @WithMockUser
     void createCompany_success_return201() throws Exception {
         String requestBody = """
                 {
@@ -56,8 +75,9 @@ class CompanyControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.statusCode").value(201))
@@ -67,7 +87,6 @@ class CompanyControllerTest {
 
     @Test
     @DisplayName("POST /companies validation error")
-    @WithMockUser
     void createCompany_validationError_return400() throws Exception {
         String requestBody = """
                 {
@@ -76,8 +95,9 @@ class CompanyControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.statusCode").value(400))
@@ -86,7 +106,6 @@ class CompanyControllerTest {
 
     @Test
     @DisplayName("POST /companies duplicate")
-    @WithMockUser
     void createCompany_duplicate_return409() throws Exception {
         Company company = new Company();
         company.setName("FPT Software");
@@ -105,8 +124,9 @@ class CompanyControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.statusCode").value(409));
     }
@@ -121,14 +141,29 @@ class CompanyControllerTest {
                 """;
 
         mockMvc.perform(post("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
+    @DisplayName("POST /companies forbidden")
+    void createCompany_forbidden_return403() throws Exception {
+        String requestBody = """
+                {
+                  "name":"FPT Software"
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/companies")
+                        .header("Authorization", "Bearer " + forbiddenToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("GET /companies/{id} success")
-    @WithMockUser
     void getCompanyById_success_return200() throws Exception {
         Company company = new Company();
         company.setName("LuuHienIT");
@@ -137,7 +172,8 @@ class CompanyControllerTest {
         company.setLogo("/logos/lh.png");
         Company saved = companyRepository.save(company);
 
-        mockMvc.perform(get("/api/v1/companies/{id}", saved.getId()))
+        mockMvc.perform(get("/api/v1/companies/{id}", saved.getId())
+                        .header("Authorization", "Bearer " + allowedToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
                 .andExpect(jsonPath("$.data.id").value(saved.getId()));
@@ -145,9 +181,9 @@ class CompanyControllerTest {
 
     @Test
     @DisplayName("GET /companies/{id} not found")
-    @WithMockUser
     void getCompanyById_notFound_return404() throws Exception {
-        mockMvc.perform(get("/api/v1/companies/{id}", 999L))
+        mockMvc.perform(get("/api/v1/companies/{id}", 999L)
+                        .header("Authorization", "Bearer " + allowedToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value(404));
     }
@@ -161,7 +197,6 @@ class CompanyControllerTest {
 
     @Test
     @DisplayName("GET /companies returns paginated data")
-    @WithMockUser
     void getAllCompanies_paginated_return200() throws Exception {
         Company c1 = new Company();
         c1.setName("LuuHienIT");
@@ -172,16 +207,26 @@ class CompanyControllerTest {
         companyRepository.save(c1);
         companyRepository.save(c2);
 
-        mockMvc.perform(get("/api/v1/companies?page=0&size=1&sort=id,asc"))
+        mockMvc.perform(get("/api/v1/companies?page=1&size=1&sort=id,asc")
+                        .header("Authorization", "Bearer " + allowedToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
-                .andExpect(jsonPath("$.data.content").isArray())
-                .andExpect(jsonPath("$.data.size").value(1));
+                .andExpect(jsonPath("$.data.result").isArray())
+                .andExpect(jsonPath("$.data.meta.page").value(1))
+                .andExpect(jsonPath("$.data.meta.pageSize").value(1))
+                .andExpect(jsonPath("$.data.meta.total").value(2));
+    }
+
+    @Test
+    @DisplayName("GET /companies forbidden")
+    void getAllCompanies_forbidden_return403() throws Exception {
+        mockMvc.perform(get("/api/v1/companies?page=1&size=10")
+                        .header("Authorization", "Bearer " + forbiddenToken))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     @DisplayName("PUT /companies success")
-    @WithMockUser
     void updateCompany_success_return200() throws Exception {
         Company company = new Company();
         company.setName("FPT Software");
@@ -201,8 +246,9 @@ class CompanyControllerTest {
                 """.formatted(saved.getId());
 
         mockMvc.perform(put("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200))
                 .andExpect(jsonPath("$.data.name").value("FPT Software Updated"));
@@ -210,7 +256,6 @@ class CompanyControllerTest {
 
     @Test
     @DisplayName("PUT /companies validation error")
-    @WithMockUser
     void updateCompany_validationError_return400() throws Exception {
         String requestBody = """
                 {
@@ -220,15 +265,15 @@ class CompanyControllerTest {
                 """;
 
         mockMvc.perform(put("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value(400));
     }
 
     @Test
     @DisplayName("PUT /companies not found")
-    @WithMockUser
     void updateCompany_notFound_return404() throws Exception {
         String requestBody = """
                 {
@@ -241,30 +286,31 @@ class CompanyControllerTest {
                 """;
 
         mockMvc.perform(put("/api/v1/companies")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value(404));
     }
 
     @Test
     @DisplayName("DELETE /companies/{id} success")
-    @WithMockUser
     void deleteCompany_success_return200() throws Exception {
         Company company = new Company();
         company.setName("Delete Me");
         Company saved = companyRepository.save(company);
 
-        mockMvc.perform(delete("/api/v1/companies/{id}", saved.getId()))
+        mockMvc.perform(delete("/api/v1/companies/{id}", saved.getId())
+                        .header("Authorization", "Bearer " + allowedToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.statusCode").value(200));
     }
 
     @Test
     @DisplayName("DELETE /companies/{id} not found")
-    @WithMockUser
     void deleteCompany_notFound_return404() throws Exception {
-        mockMvc.perform(delete("/api/v1/companies/{id}", 999L))
+        mockMvc.perform(delete("/api/v1/companies/{id}", 999L)
+                        .header("Authorization", "Bearer " + allowedToken))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.statusCode").value(404));
     }

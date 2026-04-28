@@ -11,6 +11,10 @@
       ddl-auto: create-drop
     show-sql: false
     database-platform: org.hibernate.dialect.H2Dialect
+  data:
+    web:
+      pageable:
+        one-indexed-parameters: true
   servlet:
     multipart:
       max-file-size: 5MB
@@ -33,4 +37,3 @@ app:
     allowed-folders:
       - avatars
       - logos
-

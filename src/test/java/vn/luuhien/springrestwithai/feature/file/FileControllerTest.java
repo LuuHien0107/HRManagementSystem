@@ -7,18 +7,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import vn.luuhien.springrestwithai.support.TestDataFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -30,9 +32,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FileControllerTest {
 
     private MockMvc mockMvc;
+    private String allowedToken;
+    private String forbiddenToken;
 
     @Autowired
     private WebApplicationContext webApplicationContext;
+
+    @Autowired
+    private TestDataFactory testDataFactory;
 
     @BeforeEach
     void setUp() throws IOException {
@@ -40,6 +47,12 @@ class FileControllerTest {
                 .webAppContextSetup(webApplicationContext)
                 .apply(SecurityMockMvcConfigurers.springSecurity())
                 .build();
+
+        allowedToken = testDataFactory.createUserTokenWithPermissions(
+                "file-allowed-" + UUID.randomUUID() + "@example.com",
+                List.of(new TestDataFactory.EndpointPermission("/api/v1/files", "POST", "FILE")));
+        forbiddenToken = testDataFactory.createUserTokenWithoutPermissions(
+                "file-forbidden-" + UUID.randomUUID() + "@example.com");
 
         Path baseDir = Paths.get("target/test-uploads");
         if (Files.exists(baseDir)) {
@@ -56,7 +69,6 @@ class FileControllerTest {
 
     @Test
     @DisplayName("POST /files upload success should return 201")
-    @WithMockUser
     void uploadFile_success_shouldReturn201() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -65,8 +77,9 @@ class FileControllerTest {
                 "sample-content".getBytes());
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "avatars"))
+                        .file(file)
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .param("folder", "avatars"))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.statusCode").value(201))
@@ -79,7 +92,6 @@ class FileControllerTest {
 
     @Test
     @DisplayName("POST /files with no file should return 400")
-    @WithMockUser
     void uploadFile_noFile_shouldReturn400() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -88,8 +100,9 @@ class FileControllerTest {
                 new byte[0]);
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "avatars"))
+                        .file(file)
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .param("folder", "avatars"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.statusCode").value(400))
@@ -98,7 +111,6 @@ class FileControllerTest {
 
     @Test
     @DisplayName("POST /files with invalid file name should return 400")
-    @WithMockUser
     void uploadFile_invalidFileName_shouldReturn400() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -107,8 +119,9 @@ class FileControllerTest {
                 "sample-content".getBytes());
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "avatars"))
+                        .file(file)
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .param("folder", "avatars"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value(400))
                 .andExpect(jsonPath("$.message").value("File name contains invalid characters"));
@@ -116,7 +129,6 @@ class FileControllerTest {
 
     @Test
     @DisplayName("POST /files with invalid extension should return 400")
-    @WithMockUser
     void uploadFile_invalidExtension_shouldReturn400() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -125,8 +137,9 @@ class FileControllerTest {
                 "sample-content".getBytes());
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "avatars"))
+                        .file(file)
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .param("folder", "avatars"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value(400))
                 .andExpect(jsonPath("$.message").value("File extension not allowed (only jpg/jpeg/png/gif/webp)"));
@@ -134,7 +147,6 @@ class FileControllerTest {
 
     @Test
     @DisplayName("POST /files with invalid folder should return 400")
-    @WithMockUser
     void uploadFile_invalidFolder_shouldReturn400() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -143,8 +155,9 @@ class FileControllerTest {
                 "sample-content".getBytes());
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "docs"))
+                        .file(file)
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .param("folder", "docs"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value(400))
                 .andExpect(jsonPath("$.message").value("Folder must be avatars or logos"));
@@ -152,7 +165,6 @@ class FileControllerTest {
 
     @Test
     @DisplayName("POST /files oversize should return 400")
-    @WithMockUser
     void uploadFile_oversize_shouldReturn400() throws Exception {
         MockMultipartFile file = new MockMultipartFile(
                 "file",
@@ -161,8 +173,9 @@ class FileControllerTest {
                 new byte[5_242_881]);
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "avatars"))
+                        .file(file)
+                        .header("Authorization", "Bearer " + allowedToken)
+                        .param("folder", "avatars"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.statusCode").value(400))
                 .andExpect(jsonPath("$.message").value("File size exceeds 5 MB"));
@@ -178,8 +191,24 @@ class FileControllerTest {
                 "sample-content".getBytes());
 
         mockMvc.perform(multipart("/api/v1/files")
-                .file(file)
-                .param("folder", "avatars"))
+                        .file(file)
+                        .param("folder", "avatars"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("POST /files forbidden should return 403")
+    void uploadFile_forbidden_shouldReturn403() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "avatar.jpg",
+                "image/jpeg",
+                "sample-content".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/files")
+                        .file(file)
+                        .header("Authorization", "Bearer " + forbiddenToken)
+                        .param("folder", "avatars"))
+                .andExpect(status().isForbidden());
     }
 }
